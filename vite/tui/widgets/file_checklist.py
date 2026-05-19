@@ -1,63 +1,65 @@
 from pathlib import Path
 from textual.app import ComposeResult
+from textual.message import Message
 from textual.widget import Widget
-from textual.widgets import Checkbox, Label
-from textual.containers import VerticalScroll
-from vite.tui.widgets.folder_picker import FolderPicker
+from textual.widgets import SelectionList
+from textual.widgets.selection_list import Selection
 
 
 class FileChecklist(Widget):
-    """Lista de archivos Excel con checkboxes.
+    """Lista de archivos Excel con selección múltiple."""
 
-    Se actualiza automáticamente cuando FolderPicker emite CarpetaCambiada.
-    El handler `on_folder_picker_carpeta_cambiada` se dispara porque el mensaje
-    FolderPicker.CarpetaCambiada tiene handler_name == 'on_folder_picker_carpeta_cambiada'.
-    """
+    class SeleccionArchivosCambiada(Message):
+        def __init__(self, archivos: list[Path]) -> None:
+            super().__init__()
+            self.archivos = archivos
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._carpeta: Path | None = None
         self._archivos: list[Path] = []
+        self._habilitado = False
 
     @property
     def archivos_seleccionados(self) -> list[Path]:
-        """Retorna los archivos marcados con checkbox."""
-        result = []
-        for checkbox in self.query(Checkbox):
-            if checkbox.value:
-                idx_str = checkbox.id.split("-")[-1] if checkbox.id else None
-                if idx_str is not None:
-                    try:
-                        idx = int(idx_str)
-                        if idx < len(self._archivos):
-                            result.append(self._archivos[idx])
-                    except ValueError:
-                        pass
-        return result
+        if not self.is_mounted:
+            return []
+        selected = self.query_one("#selection-archivos", SelectionList).selected
+        return list(selected)
 
     def compose(self) -> ComposeResult:
-        with VerticalScroll(id="scroll-archivos"):
-            yield Label(
-                "(Seleccione una carpeta y haga clic en Refrescar)",
-                id="label-vacio",
-            )
+        yield SelectionList[Path](id="selection-archivos", disabled=True)
 
-    def on_folder_picker_carpeta_cambiada(self, event: FolderPicker.CarpetaCambiada) -> None:
-        self._carpeta = event.carpeta
-        self._refrescar()
+    def set_enabled(self, enabled: bool) -> None:
+        self._habilitado = enabled
+        if self.is_mounted:
+            self.query_one("#selection-archivos", SelectionList).disabled = not enabled
 
-    def _refrescar(self) -> None:
-        if not self._carpeta:
+    def cargar_desde_carpeta(self, carpeta: Path | None) -> None:
+        if not self.is_mounted:
             return
-        self._archivos = sorted(
-            list(self._carpeta.glob("*.xlsx")) + list(self._carpeta.glob("*.xls"))
-        )
-        scroll = self.query_one("#scroll-archivos", VerticalScroll)
-        # remove_children() returns an AwaitRemove; calling without await is safe
-        # in Textual 8.x — the removal is scheduled on the next frame.
-        scroll.remove_children()
+        selection = self.query_one("#selection-archivos", SelectionList)
+        selection.clear_options()
+        self._archivos = []
+        if carpeta is None:
+            self.post_message(self.SeleccionArchivosCambiada([]))
+            return
+
+        self._archivos = sorted(list(carpeta.glob("*.xlsx")) + list(carpeta.glob("*.xls")))
         if not self._archivos:
-            scroll.mount(Label("No se encontraron archivos .xls/.xlsx en la carpeta"))
+            self.post_message(self.SeleccionArchivosCambiada([]))
             return
-        for idx, archivo in enumerate(self._archivos):
-            scroll.mount(Checkbox(archivo.name, id=f"chk-{idx}"))
+
+        selection.add_options(
+            [Selection(archivo.name, archivo) for archivo in self._archivos]
+        )
+        self.post_message(self.SeleccionArchivosCambiada([]))
+
+    def on_mount(self) -> None:
+        self.query_one("#selection-archivos", SelectionList).disabled = not self._habilitado
+
+    def on_selection_list_selected_changed(
+        self, event: SelectionList.SelectedChanged[Path]
+    ) -> None:
+        if event.control.id != "selection-archivos":
+            return
+        self.post_message(self.SeleccionArchivosCambiada(self.archivos_seleccionados))

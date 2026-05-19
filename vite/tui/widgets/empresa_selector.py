@@ -1,4 +1,5 @@
 from textual.app import ComposeResult
+from textual.message import Message
 from textual.widget import Widget
 from textual.widgets import Select
 from vite.db.repositories import empresa_repo
@@ -6,6 +7,13 @@ from vite.db.repositories import empresa_repo
 
 class EmpresaSelector(Widget):
     """Widget para seleccionar empresa desde la BD."""
+
+    class EmpresaSeleccionada(Message):
+        """Evento emitido cuando cambia la empresa seleccionada."""
+
+        def __init__(self, empresa_id: int | None) -> None:
+            super().__init__()
+            self.empresa_id = empresa_id
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -24,10 +32,13 @@ class EmpresaSelector(Widget):
         yield Select(opciones, prompt="Seleccione empresa...", id="select-empresa")
 
     def on_select_changed(self, event: Select.Changed) -> None:
-        if event.value and event.value != Select.BLANK:
+        blank_value = getattr(Select, "NULL", None)
+        value = event.value
+        if value and value != blank_value:
             try:
-                self._empresa_id = int(event.value)
+                self._empresa_id = int(value)
             except (ValueError, TypeError):
                 self._empresa_id = None
         else:
             self._empresa_id = None
+        self.post_message(self.EmpresaSeleccionada(self._empresa_id))

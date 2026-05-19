@@ -63,6 +63,30 @@ class TestInferirTpdoc:
         resultado = inferir_tpdoc('123456789')
         assert isinstance(resultado, str)
 
+    def test_regla_1_nit_mas_8_y_solo_dos_retorna_43(self):
+        """Regla 1: >8 dígitos y todos '2' => TPDOC='43'."""
+        assert inferir_tpdoc("222222222") == "43"
+
+    def test_regla_2_nit_9_e_inicia_444_retorna_43(self):
+        """Regla 2: 9 dígitos iniciando en '444' => TPDOC='43'."""
+        assert inferir_tpdoc("444444201") == "43"
+
+    def test_regla_3_pais_extranjero_con_rz_retorna_42(self):
+        """Regla 3: PAIS!=169 y RZ informado => TPDOC='42'."""
+        assert inferir_tpdoc("123456789", pais="840", rz="ACME LLC") == "42"
+
+    def test_regla_3_no_aplica_si_pais_169(self):
+        """Si PAIS='169', no aplica regla 3 y cae a regla base."""
+        assert inferir_tpdoc("123456789", pais="169", rz="ACME SAS") == "31"
+
+    def test_regla_3_no_aplica_si_rz_vacio(self):
+        """Si RZ no está informado, no aplica regla 3."""
+        assert inferir_tpdoc("123456789", pais="840", rz="") == "31"
+
+    def test_prioridad_reglas_1_y_2_sobre_regla_3(self):
+        """Si coincide con 43 y también con regla de PAIS/RZ, prevalece 43."""
+        assert inferir_tpdoc("444222222", pais="840", rz="EXTERIOR") == "43"
+
 
 # ---------------------------------------------------------------------------
 # aplicar_tpdoc — lógica de actualización
@@ -114,3 +138,15 @@ class TestAplicarTpdoc:
         tercero = {'tpdoc': 31, 'nmdoc': '123456789'}
         # int 31 → str '31' → igual al calculado '31' → sin cambio
         assert aplicar_tpdoc(tercero) is None
+
+    def test_aplicar_tpdoc_regla_1_actualiza_a_43(self):
+        tercero = {'tpdoc': '13', 'nmdoc': '222222222', 'pais': '169', 'rz': None}
+        assert aplicar_tpdoc(tercero) == {'tpdoc': '43'}
+
+    def test_aplicar_tpdoc_regla_2_actualiza_a_43(self):
+        tercero = {'tpdoc': '31', 'nmdoc': '444444201', 'pais': '169', 'rz': 'X'}
+        assert aplicar_tpdoc(tercero) == {'tpdoc': '43'}
+
+    def test_aplicar_tpdoc_regla_3_actualiza_a_42(self):
+        tercero = {'tpdoc': '31', 'nmdoc': '123456789', 'pais': '840', 'rz': 'ACME LLC'}
+        assert aplicar_tpdoc(tercero) == {'tpdoc': '42'}

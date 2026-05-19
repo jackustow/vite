@@ -19,6 +19,7 @@ class FolderPicker(Widget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._carpeta: Path | None = None
+        self._habilitado = False
 
     @property
     def carpeta_seleccionada(self) -> Path | None:
@@ -28,6 +29,26 @@ class FolderPicker(Widget):
         with Horizontal():
             yield Input(placeholder="Ingrese la ruta de la carpeta...", id="input-carpeta")
             yield Button("↺ Refrescar", id="btn-refrescar", variant="default")
+
+    def on_mount(self) -> None:
+        self.set_enabled(self._habilitado)
+
+    def set_enabled(self, enabled: bool) -> None:
+        self._habilitado = enabled
+        if not self.is_mounted:
+            return
+        self.query_one("#input-carpeta", Input).disabled = not enabled
+        self.query_one("#btn-refrescar", Button).disabled = not enabled
+
+    def limpiar(self) -> None:
+        self._carpeta = None
+        if self.is_mounted:
+            self.query_one("#input-carpeta", Input).value = ""
+
+    def enfocar_input(self) -> None:
+        if not self._habilitado or not self.is_mounted:
+            return
+        self.query_one("#input-carpeta", Input).focus()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-refrescar":

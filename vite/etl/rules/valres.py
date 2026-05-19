@@ -5,6 +5,8 @@ from dataclasses import dataclass
 # Constantes del dominio
 TPDOC_NATURAL = '13'
 TPDOC_JURIDICA = '31'
+TPDOC_EXTERIOR = '42'
+TPDOC_SIN_NIT_LOCAL = '43'
 PAIS_COLOMBIA = '169'
 
 
@@ -91,7 +93,7 @@ def validar_globales(tercero: dict) -> list[ValidationError]:
 
 def validar_tpdoc_01(tercero: dict) -> list[ValidationError]:
     """
-    TPDOC debe ser '13' o '31'.
+    TPDOC debe ser uno de los códigos permitidos.
 
     Args:
         tercero: dict con campo 'tpdoc'
@@ -99,12 +101,20 @@ def validar_tpdoc_01(tercero: dict) -> list[ValidationError]:
         lista de ValidationError
     """
     tpdoc = tercero.get('tpdoc')
-    if str(tpdoc).strip() not in (TPDOC_NATURAL, TPDOC_JURIDICA):
+    codigos_validos = (
+        TPDOC_NATURAL,
+        TPDOC_JURIDICA,
+        TPDOC_EXTERIOR,
+        TPDOC_SIN_NIT_LOCAL,
+    )
+    if str(tpdoc).strip() not in codigos_validos:
         return [ValidationError(
             codigo='VAL_TPDOC_01',
             descripcion=(
                 f"El TPDOC '{tpdoc}' no es válido. "
-                f"Valores permitidos: '{TPDOC_NATURAL}' (natural) o '{TPDOC_JURIDICA}' (jurídica)."
+                "Valores permitidos: "
+                f"'{TPDOC_NATURAL}', '{TPDOC_JURIDICA}', "
+                f"'{TPDOC_EXTERIOR}', '{TPDOC_SIN_NIT_LOCAL}'."
             ),
         )]
     return []

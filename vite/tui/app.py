@@ -18,7 +18,8 @@ class ViteApp(App):
     .section-title {
         text-style: bold;
         color: $primary;
-        margin: 1 0;
+        margin: 0 0;
+        padding: 0 0;
     }
 
     .error-label {
@@ -27,7 +28,41 @@ class ViteApp(App):
 
     Button.primary-btn {
         background: $primary;
-        margin: 1 0;
+        margin: 0 0;
+    }
+
+    #main-container {
+        layout: vertical;
+        overflow-y: auto;
+        padding: 0 0;
+    }
+
+    #empresa-selector,
+    #periodo-selector,
+    #folder-picker {
+        margin: 0 0;
+        padding: 0 0;
+        height: auto;
+    }
+
+    #file-checklist {
+        height: 16;
+        padding: 0 0;
+        margin: 0 0;
+    }
+
+    #selection-archivos {
+        height: 1fr;
+    }
+
+    #folder-picker {
+        margin: 0 0;
+        padding: 0 0;
+    }
+
+    #btn-iniciar {
+        margin: 0 0;
+        padding: 0 0;
     }
     """
 

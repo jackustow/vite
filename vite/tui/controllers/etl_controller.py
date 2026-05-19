@@ -30,20 +30,38 @@ class ETLController:
             output_path: Path | None = None
             error_msg: str | None = None
 
-            def on_progress(msg: str) -> None:
+            def reportar(proceso: str, msg: str) -> None:
                 # call_from_thread es thread-safe en Textual 8.x
-                self._app.call_from_thread(modal.update_message, msg)
+                self._app.call_from_thread(modal.update_status, proceso, msg)
 
             try:
-                extractor.ejecutar(empresa_id, periodo_id, archivos, callback=on_progress)
-                transformer.ejecutar(empresa_id, periodo_id, callback=on_progress)
-                output_path = loader.ejecutar(
-                    empresa_id, periodo_id, carpeta, callback=on_progress
+                reportar("Extracción de datos", "Validando archivos y estructura...")
+                extractor.ejecutar(
+                    empresa_id,
+                    periodo_id,
+                    archivos,
+                    callback=lambda msg: reportar("Extracción de datos", msg),
                 )
+                reportar("Transformación de datos", "Aplicando reglas y validaciones...")
+                transformer.ejecutar(
+                    empresa_id,
+                    periodo_id,
+                    callback=lambda msg: reportar("Transformación de datos", msg),
+                )
+                reportar("Generación de informe", "Preparando archivo de salida...")
+                output_path = loader.ejecutar(
+                    empresa_id,
+                    periodo_id,
+                    carpeta,
+                    callback=lambda msg: reportar("Generación de informe", msg),
+                )
+                reportar("Finalización", "Proceso completado. Preparando resultados...")
             except (ExtractionError, TransformationError, LoadError) as exc:
                 error_msg = str(exc)
+                reportar("Error", error_msg)
             except Exception as exc:
                 error_msg = f"Error inesperado: {exc}"
+                reportar("Error", error_msg)
 
             # Finalizar siempre desde el hilo principal
             self._app.call_from_thread(self._finalizar, modal, output_path, error_msg)

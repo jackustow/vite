@@ -76,7 +76,7 @@ class TestVacio:
 # ---------------------------------------------------------------------------
 
 class TestValidarTpdoc01:
-    """TPDOC debe ser '13' o '31'."""
+    """TPDOC debe estar dentro del catálogo permitido."""
 
     def test_tpdoc_99_genera_error(self):
         tercero = {'tpdoc': '99'}
@@ -90,6 +90,14 @@ class TestValidarTpdoc01:
 
     def test_tpdoc_31_sin_error(self):
         tercero = {'tpdoc': '31'}
+        assert validar_tpdoc_01(tercero) == []
+
+    def test_tpdoc_42_sin_error(self):
+        tercero = {'tpdoc': '42'}
+        assert validar_tpdoc_01(tercero) == []
+
+    def test_tpdoc_43_sin_error(self):
+        tercero = {'tpdoc': '43'}
         assert validar_tpdoc_01(tercero) == []
 
     def test_tpdoc_none_genera_error(self):
