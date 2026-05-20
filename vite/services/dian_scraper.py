@@ -4,14 +4,11 @@ Este módulo está diseñado para ejecutarse dentro de un worker thread; por eso
 utiliza la API síncrona de Playwright en lugar de la asíncrona.
 """
 
-import logging
-
+from loguru import logger
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
 from vite.config.settings import DIAN_URL, TPDOC_NATURAL, TPDOC_JURIDICA
 from vite.etl.rules.actinf_dv import calcular_dv_colombia
-
-logger = logging.getLogger(__name__)
 
 # Cache en memoria para evitar consultas duplicadas durante la sesión
 _cache: dict[str, dict | None] = {}

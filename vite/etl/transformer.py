@@ -1,19 +1,19 @@
 """Fase 2 ETL: Transformación y validación de terceros."""
-import logging
+from loguru import logger
 from vite.config.settings import TIPO_ACTINF, TIPO_VALRES, TIPO_INFOOK, TPDOC_NATURAL, TPDOC_JURIDICA
 from vite.db.repositories import config_repo, terceros_repo, log_repo
 from vite.etl.rules import actinf_dv, actinf_tpdoc, actinf_nombres, actinf_direccion, valres
 from vite.services.dian_scraper import consultar_tercero, limpiar_cache
 
-logger = logging.getLogger(__name__)
-
 
 def ejecutar(empresa_id: int, periodo_id: int, callback: callable = None) -> None:
     """Transforma y valida todos los terceros. Orden: ACTINF → VALRES → INFOOK."""
 
-    # ------------------------------------------------------------------
-    # Pre-carga en memoria (una sola consulta de cada recurso compartido)
-    # ------------------------------------------------------------------
+    logger.info(
+        "FASE 2 — Transformación iniciada: empresa={}, periodo={}",
+        empresa_id, periodo_id,
+    )
+
     nomenclaturas = config_repo.get_nomenclaturas()
     paises_validos = config_repo.get_paises_ids()
     pais_dpto_set = config_repo.get_pais_dpto_set()
@@ -22,7 +22,7 @@ def ejecutar(empresa_id: int, periodo_id: int, callback: callable = None) -> Non
 
     terceros = terceros_repo.get_all_terceros(empresa_id, periodo_id)
     total = len(terceros)
-    logger.info("Iniciando transformación: %d terceros.", total)
+    logger.info("FASE 2 — Transformando {} terceros.", total)
 
     # Precargar mapa de formatos por tercero: {nmdoc: [formato_id, ...]}
     formatos_map: dict[str, list[int]] = {}
@@ -69,6 +69,7 @@ def ejecutar(empresa_id: int, periodo_id: int, callback: callable = None) -> Non
             )
             tercero.update(cambio)
             hubo_actinf = True
+            logger.debug("ACTINF TPDOC — NMDOC={}: {} → {}", nmdoc, tercero.get('tpdoc'), cambio['tpdoc'])
 
         # --- ACTINF 2: DV ---
         cambio = actinf_dv.aplicar_dv(tercero)
@@ -165,6 +166,10 @@ def ejecutar(empresa_id: int, periodo_id: int, callback: callable = None) -> Non
                     codigo_validacion=error.codigo,
                     descripcion=f"[Formato {formato_id}] {error.descripcion}",
                 )
+                logger.warning(
+                    "VALRES — NMDOC={} fmt={}: [{}] {}",
+                    nmdoc, formato_id, error.codigo, error.descripcion,
+                )
                 hubo_valres = True
 
         # --- INFOOK ---
@@ -176,7 +181,7 @@ def ejecutar(empresa_id: int, periodo_id: int, callback: callable = None) -> Non
                 ),
             )
 
-    logger.info("Transformación finalizada: %d terceros procesados.", total)
+    logger.info("FASE 2 — Transformación finalizada: {} terceros procesados.", total)
 
 
 # ---------------------------------------------------------------------------

@@ -1,12 +1,10 @@
 """Fase 3 ETL: Generación del informe Excel de validaciones."""
-import logging
 from pathlib import Path
 from datetime import datetime
+from loguru import logger
 from vite.etl import LoadError
 from vite.db.repositories import log_repo, terceros_repo
 from vite.services.excel_parser import write_report
-
-logger = logging.getLogger(__name__)
 
 
 def ejecutar(
@@ -28,6 +26,11 @@ def ejecutar(
     Raises:
         LoadError: si la escritura del archivo Excel falla.
     """
+    logger.info(
+        "FASE 3 — Generación de informe: empresa={}, periodo={}",
+        empresa_id, periodo_id,
+    )
+
     if callback:
         callback("Preparando datos del informe...")
 
@@ -68,9 +71,10 @@ def ejecutar(
     try:
         write_report(output_path, hoja1_data, hoja2_data)
     except Exception as e:
+        logger.error("Error escribiendo informe Excel: {}", e)
         raise LoadError(f"Error generando el informe Excel: {e}") from e
 
-    logger.info("Informe generado: %s", output_path)
+    logger.info("FASE 3 — Informe generado: {}", output_path)
     if callback:
         callback(f"Informe generado: {output_path.name}")
 

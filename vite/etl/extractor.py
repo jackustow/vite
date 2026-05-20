@@ -1,11 +1,9 @@
 """Fase 1 ETL: Extracción de datos desde archivos Excel hacia PostgreSQL."""
-import logging
 from pathlib import Path
+from loguru import logger
 from vite.etl import ExtractionError
 from vite.db.repositories import config_repo, terceros_repo
 from vite.services.excel_parser import read_excel, extract_formato_from_filename
-
-logger = logging.getLogger(__name__)
 
 
 def ejecutar(
@@ -31,21 +29,31 @@ def ejecutar(
     # ------------------------------------------------------------------
     archivos_validados: list[tuple[Path, int, object]] = []
 
+    logger.info(
+        "FASE 1 — Extracción iniciada: empresa={}, periodo={}, archivos={}",
+        empresa_id, periodo_id, [a.name for a in archivos],
+    )
+
     for archivo in archivos:
-        # Determinar formato desde el nombre del archivo
         formato_id = extract_formato_from_filename(archivo.name)
         if formato_id is None:
+            logger.error("Archivo sin formato válido en el nombre: {}", archivo.name)
             raise ExtractionError(
                 f"'{archivo.name}' no contiene número de formato válido"
             )
 
+        logger.debug("Leyendo archivo: {} (formato {})", archivo.name, formato_id)
         df = read_excel(archivo)
 
-        campos_empresa = config_repo.get_campos_empresa(empresa_id)   # {campo_id: empresa_campo}
-        campos_req = config_repo.get_campos_requeridos(formato_id)    # {campo_id: aplica}
+        campos_empresa = config_repo.get_campos_empresa(empresa_id)
+        campos_req = config_repo.get_campos_requeridos(formato_id)
 
         for campo_id, aplica in campos_req.items():
             if aplica and campos_empresa.get(campo_id) not in df.columns:
+                logger.error(
+                    "Campo requerido '{}' no encontrado en {} (formato {})",
+                    campos_empresa.get(campo_id), archivo.name, formato_id,
+                )
                 raise ExtractionError(
                     f"Campo '{campos_empresa.get(campo_id)}' no encontrado en "
                     f"Formato {formato_id}. Verifique la configuración de "
@@ -53,7 +61,7 @@ def ejecutar(
                 )
 
         archivos_validados.append((archivo, formato_id, df))
-        logger.debug("Estructura válida: %s (formato %s)", archivo.name, formato_id)
+        logger.debug("Estructura válida: {} (formato {})", archivo.name, formato_id)
 
     # ------------------------------------------------------------------
     # FASE B: Importar en orden de prioridad
@@ -108,11 +116,15 @@ def ejecutar(
             callback(f"Formato {formato_id}: {registros_procesados} registros procesados")
 
         logger.info(
-            "Formato %s (%s): %d registros importados.",
+            "Formato {} ({}): {} registros importados.",
             formato_id,
             archivo.name,
             registros_procesados,
         )
         resultado.append((archivo, formato_id))
 
+    logger.info(
+        "FASE 1 — Extracción completada: {} archivo(s) procesado(s).",
+        len(resultado),
+    )
     return resultado
